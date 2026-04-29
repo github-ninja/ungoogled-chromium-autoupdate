@@ -485,8 +485,13 @@ function Remove-ChromiumCache {
             foreach ($folder in $Script:Config.CacheFolders) {
                 $targets.Add([IO.Path]::Combine($profileDir, $folder))
             }
-            $targets.Add([IO.Path]::Combine($profileDir, 'Service Worker', 'CacheStorage'))
-            $targets.Add([IO.Path]::Combine($profileDir, 'Service Worker', 'ScriptCache'))
+            # NOTE: Service Worker/CacheStorage and Service Worker/ScriptCache are intentionally
+            # excluded here. Despite the name, these directories are NOT expendable browser cache --
+            # they are persistent storage for extension Service Workers (e.g. Bitwarden) and PWAs.
+            # Deleting them causes extensions to lose their registered Service Worker state,
+            # requiring a manual disable/enable cycle to recover. The browser regenerates true
+            # cache (HTTP cache, shader cache, etc.) automatically; Service Worker storage does not
+            # recover on its own and contains user-session-critical data.
         }
     }
     catch [UnauthorizedAccessException] {
@@ -1267,7 +1272,7 @@ function Read-SpacebarOverride {
     [OutputType([bool])]
     param(
         [int]$TimeoutSeconds = 3,
-        [string]$Prompt = 'Press SPACEBAR to force clear cache'
+        [string]$Prompt = 'Press SPACEBAR to force-close browser and clear cache'
     )
 
     # Interactivity check
@@ -1387,7 +1392,7 @@ try {
         # No update -- ask user
         $forceClean = Read-SpacebarOverride -TimeoutSeconds 3
         if ($forceClean) {
-            Write-Log "`nForced cache clearing by user request." -Level Info
+            Write-Log "`nForced cache clearing requested. Stopping browser and clearing cache..." -Level Warning
             # Cache files are locked by chrome.exe. Must stop browser.
             Stop-ChromiumProcesses
             if (Test-Path -LiteralPath $Script:Config.PortableUserData) {
@@ -1410,10 +1415,12 @@ finally {
     Clear-TempFiles
     Release-SingleInstanceMutex
 
-    # On error -- delay so user can see the message.
-    # Normal mode -- console closes after final log.
-    if ($exitCode -ne 0 -and [Environment]::UserInteractive -and $Host.Name -eq 'ConsoleHost') {
-        Write-Host "`nDetails in $($Script:Config.LogFile)" -ForegroundColor DarkGray
+    # In interactive mode always hold the window for 3 seconds so the user
+    # can read the final output -- regardless of success or failure.
+    if ([Environment]::UserInteractive -and $Host.Name -eq 'ConsoleHost') {
+        if ($exitCode -ne 0) {
+            Write-Host "`nDetails in $($Script:Config.LogFile)" -ForegroundColor DarkGray
+        }
         Start-Sleep -Seconds 3
     }
 }
