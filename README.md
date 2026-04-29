@@ -15,11 +15,19 @@ A robust PowerShell script (v2.1) designed to automate the installation, update,
 
 ## Quick Start
 
-1.  Place `chrupdate.ps1` in the folder where you want Ungoogled Chromium to be installed.
-2.  Run the script with PowerShell:
-    ```powershell
-    .\chrupdate.ps1
-    ```
+1. Place `chrupdate.ps1` in the folder where you want Ungoogled Chromium to be installed.
+
+2. Windows marks files downloaded from the internet as potentially dangerous (Zone Identifier).
+   This is standard OS behavior and is not related to the script itself.
+   To dismiss the warning once and for all, run in PowerShell:
+```powershell
+   Unblock-File -Path "C:\Path\To\chrupdate.ps1"
+```
+
+3. Run the script with PowerShell:
+```powershell
+   .\chrupdate.ps1
+```
 
 ## Command Line Arguments
 
